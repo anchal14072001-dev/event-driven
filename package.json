@@ -1,0 +1,16 @@
+{
+  "name": "microservices-project",
+  "version": "1.0.0",
+  "description": "E-commerce Microservices System",
+  "main": "index.js",
+  "scripts": {
+    "start": "docker compose up -d mongo rabbitmq && npx concurrently -n \"USERS,ORDERS,PAYMENT,GATEWAY\" -c \"blue,green,yellow,magenta\" \"npm start --prefix Services/user-service\" \"npm start --prefix Services/order-service\" \"npm start --prefix Services/payment-service\" \"npm start --prefix Services/api-gateway\"",
+    "demo": "node dashboard/server.js",
+    "services": "npx concurrently -n \"USERS,ORDERS,PAYMENT,GATEWAY\" -c \"blue,green,yellow,magenta\" \"npm start --prefix Services/user-service\" \"npm start --prefix Services/order-service\" \"npm start --prefix Services/payment-service\" \"npm start --prefix Services/api-gateway\"",
+    "infra": "docker compose up -d mongo rabbitmq",
+    "stop": "docker compose down"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}

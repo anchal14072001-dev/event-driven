@@ -1,0 +1,1781 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>E-Commerce Microservices & Saga Pattern Visualizer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #07090e;
+      --bg-card: #0e131f;
+      --bg-card-hover: #131b2e;
+      --bg-card-subtle: rgba(16, 24, 40, 0.7);
+      --border: rgba(255, 255, 255, 0.08);
+      --border-accent: rgba(99, 102, 241, 0.35);
+      --text: #f1f5f9;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+      --primary: #6366f1;
+      --primary-glow: rgba(99, 102, 241, 0.25);
+      --cyan: #06b6d4;
+      --cyan-glow: rgba(6, 182, 212, 0.25);
+      --emerald: #10b981;
+      --emerald-glow: rgba(16, 185, 129, 0.25);
+      --amber: #f59e0b;
+      --amber-glow: rgba(245, 158, 11, 0.25);
+      --rose: #f43f5e;
+      --rose-glow: rgba(244, 63, 94, 0.25);
+      --purple: #a855f7;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg);
+      background-image: 
+        radial-gradient(ellipse at 15% 10%, rgba(99, 102, 241, 0.12) 0%, transparent 40%),
+        radial-gradient(ellipse at 85% 20%, rgba(6, 182, 212, 0.1) 0%, transparent 40%),
+        radial-gradient(ellipse at 50% 90%, rgba(168, 85, 247, 0.08) 0%, transparent 50%),
+        linear-gradient(rgba(255, 255, 255, 0.015) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
+      background-size: 100% 100%, 100% 100%, 100% 100%, 32px 32px, 32px 32px;
+      color: var(--text);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Top Navigation Header */
+    header {
+      background: rgba(11, 15, 25, 0.85);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+      padding: 1rem 2rem;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+    }
+
+    .logo-badge {
+      width: 42px;
+      height: 42px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, var(--primary), var(--cyan));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 20px var(--primary-glow);
+    }
+
+    .logo-badge svg {
+      width: 24px;
+      height: 24px;
+      fill: white;
+    }
+
+    .brand-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.3rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      background: linear-gradient(135deg, #ffffff 40%, #94a3b8 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .brand-subtitle {
+      font-size: 0.75rem;
+      color: var(--cyan);
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    /* Service Status Badges */
+    .services-status-bar {
+      display: flex;
+      gap: 0.6rem;
+      flex-wrap: wrap;
+    }
+
+    .status-pill {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 0.35rem 0.75rem;
+      font-size: 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      color: var(--text-muted);
+      font-family: 'JetBrains Mono', monospace;
+      transition: all 0.2s ease;
+    }
+
+    .status-pill.active {
+      border-color: rgba(16, 185, 129, 0.3);
+      background: rgba(16, 185, 129, 0.08);
+      color: #34d399;
+    }
+
+    .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #10b981;
+      box-shadow: 0 0 8px #10b981;
+      animation: pulse 2s infinite ease-in-out;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.85); }
+    }
+
+    /* Main Container */
+    main {
+      flex: 1;
+      max-width: 1440px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 1.75rem 2rem 3rem 2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.75rem;
+    }
+
+    /* Tab Switcher */
+    .nav-tabs {
+      display: flex;
+      background: rgba(14, 19, 31, 0.6);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 0.35rem;
+      gap: 0.35rem;
+      width: fit-content;
+      max-width: 100%;
+      overflow-x: auto;
+    }
+
+    .tab-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      padding: 0.6rem 1.25rem;
+      border-radius: 10px;
+      font-size: 0.88rem;
+      font-weight: 500;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      transition: all 0.2s ease;
+      font-family: 'Inter', sans-serif;
+      white-space: nowrap;
+    }
+
+    .tab-btn:hover {
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    .tab-btn.active {
+      background: var(--primary);
+      color: white;
+      box-shadow: 0 0 16px var(--primary-glow);
+    }
+
+    /* Sections */
+    .tab-content {
+      display: none;
+      flex-direction: column;
+      gap: 1.75rem;
+    }
+
+    .tab-content.active {
+      display: flex;
+    }
+
+    /* Card Panels */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 1.5rem;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.25rem;
+      padding-bottom: 0.85rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .card-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.15rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+
+    .card-badge {
+      font-size: 0.72rem;
+      font-family: 'JetBrains Mono', monospace;
+      padding: 0.25rem 0.6rem;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+    }
+
+    /* Architecture Topology Interactive Visualizer */
+    .topology-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1.25rem;
+      position: relative;
+      margin-bottom: 1rem;
+    }
+
+    .node-box {
+      background: var(--bg-card-subtle);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 1.25rem;
+      position: relative;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .node-box:hover {
+      border-color: var(--cyan);
+      box-shadow: 0 0 25px var(--cyan-glow);
+      transform: translateY(-2px);
+    }
+
+    .node-box.highlight {
+      border-color: #10b981 !important;
+      box-shadow: 0 0 25px var(--emerald-glow) !important;
+      animation: nodePulse 1.5s ease-in-out infinite;
+    }
+
+    .node-box.error-highlight {
+      border-color: var(--rose) !important;
+      box-shadow: 0 0 25px var(--rose-glow) !important;
+    }
+
+    @keyframes nodePulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.02); }
+    }
+
+    .node-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .node-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 0.95rem;
+    }
+
+    .icon-gw { background: linear-gradient(135deg, #06b6d4, #3b82f6); color: white; }
+    .icon-user { background: linear-gradient(135deg, #8b5cf6, #6366f1); color: white; }
+    .icon-order { background: linear-gradient(135deg, #10b981, #059669); color: white; }
+    .icon-payment { background: linear-gradient(135deg, #f59e0b, #d97706); color: white; }
+    .icon-rabbit { background: linear-gradient(135deg, #ff6600, #ea580c); color: white; }
+    .icon-mongo { background: linear-gradient(135deg, #13aa52, #0d823e); color: white; }
+
+    .node-title {
+      font-family: 'Outfit', sans-serif;
+      font-weight: 600;
+      font-size: 0.98rem;
+    }
+
+    .node-meta {
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .node-desc {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+
+    .node-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-top: 0.6rem;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+      font-size: 0.75rem;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Saga Simulator Controls */
+    .saga-control-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      align-items: center;
+      background: rgba(14, 19, 31, 0.8);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 1.25rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .btn {
+      background: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      padding: 0.65rem 1.4rem;
+      font-weight: 600;
+      font-size: 0.9rem;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      box-shadow: 0 0 16px var(--primary-glow);
+      transition: all 0.2s ease;
+      font-family: 'Inter', sans-serif;
+    }
+
+    .btn:hover {
+      background: #4f46e5;
+      transform: translateY(-1px);
+      box-shadow: 0 0 24px var(--primary-glow);
+    }
+
+    .btn:active {
+      transform: translateY(0);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text);
+      box-shadow: none;
+      border: 1px solid var(--border);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.09);
+      border-color: rgba(255, 255, 255, 0.15);
+    }
+
+    .btn-success {
+      background: var(--emerald);
+      box-shadow: 0 0 16px var(--emerald-glow);
+    }
+    .btn-success:hover { background: #059669; }
+
+    .btn-danger {
+      background: var(--rose);
+      box-shadow: 0 0 16px var(--rose-glow);
+    }
+    .btn-danger:hover { background: #e11d48; }
+
+    .radio-group {
+      display: flex;
+      background: rgba(0, 0, 0, 0.3);
+      padding: 0.25rem;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      gap: 0.2rem;
+    }
+
+    .radio-group label {
+      font-size: 0.8rem;
+      padding: 0.35rem 0.75rem;
+      border-radius: 6px;
+      cursor: pointer;
+      color: var(--text-muted);
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+    }
+
+    .radio-group input {
+      display: none;
+    }
+
+    .radio-group label.active {
+      background: rgba(255, 255, 255, 0.1);
+      color: white;
+      font-weight: 500;
+    }
+
+    /* Live Stepper */
+    .stepper-container {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+
+    .step-item {
+      display: flex;
+      gap: 1.25rem;
+      align-items: flex-start;
+      padding: 1rem 1.25rem;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--border);
+      transition: all 0.3s ease;
+    }
+
+    .step-item.active {
+      background: rgba(99, 102, 241, 0.08);
+      border-color: var(--primary);
+      box-shadow: 0 0 20px var(--primary-glow);
+    }
+
+    .step-item.success {
+      background: rgba(16, 185, 129, 0.08);
+      border-color: var(--emerald);
+      box-shadow: 0 0 20px var(--emerald-glow);
+    }
+
+    .step-item.failed {
+      background: rgba(244, 63, 94, 0.08);
+      border-color: var(--rose);
+      box-shadow: 0 0 20px var(--rose-glow);
+    }
+
+    .step-badge {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      flex-shrink: 0;
+    }
+
+    .step-item.active .step-badge {
+      background: var(--primary);
+      color: white;
+      box-shadow: 0 0 10px var(--primary-glow);
+    }
+
+    .step-item.success .step-badge {
+      background: var(--emerald);
+      color: white;
+      box-shadow: 0 0 10px var(--emerald-glow);
+    }
+
+    .step-item.failed .step-badge {
+      background: var(--rose);
+      color: white;
+      box-shadow: 0 0 10px var(--rose-glow);
+    }
+
+    .step-body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+
+    .step-header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .step-title {
+      font-size: 0.95rem;
+      font-weight: 600;
+    }
+
+    .step-tag {
+      font-size: 0.72rem;
+      font-family: 'JetBrains Mono', monospace;
+      padding: 0.2rem 0.5rem;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text-muted);
+    }
+
+    .step-desc {
+      font-size: 0.84rem;
+      color: var(--text-muted);
+    }
+
+    .code-preview {
+      margin-top: 0.5rem;
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 8px;
+      padding: 0.6rem 0.85rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.78rem;
+      color: #38bdf8;
+      overflow-x: auto;
+      white-space: pre-wrap;
+    }
+
+    /* Postman API Explorer */
+    .api-explorer-grid {
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: 1.5rem;
+    }
+
+    @media (max-width: 900px) {
+      .api-explorer-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .endpoint-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .endpoint-card {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0.85rem 1rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      transition: all 0.2s ease;
+    }
+
+    .endpoint-card:hover {
+      background: rgba(255, 255, 255, 0.05);
+      border-color: rgba(255, 255, 255, 0.15);
+    }
+
+    .endpoint-card.active {
+      background: rgba(99, 102, 241, 0.12);
+      border-color: var(--primary);
+    }
+
+    .http-method {
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 0.2rem 0.5rem;
+      border-radius: 6px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .method-post { background: rgba(16, 185, 129, 0.2); color: #34d399; }
+    .method-get { background: rgba(6, 182, 212, 0.2); color: #38bdf8; }
+    .method-put { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
+
+    .endpoint-path {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8rem;
+      color: var(--text);
+    }
+
+    /* Request / Response Panel */
+    .req-res-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .url-bar {
+      display: flex;
+      gap: 0.5rem;
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0.4rem;
+      align-items: center;
+    }
+
+    .url-method-select {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border);
+      color: white;
+      padding: 0.5rem 0.75rem;
+      border-radius: 6px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+
+    .url-input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: var(--text);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85rem;
+      outline: none;
+      padding: 0.4rem;
+    }
+
+    .editor-box {
+      background: #090d16;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.82rem;
+      color: #93c5fd;
+      min-height: 120px;
+      width: 100%;
+      resize: vertical;
+      outline: none;
+    }
+
+    .response-container {
+      background: #090d16;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    .response-header {
+      background: rgba(255, 255, 255, 0.03);
+      padding: 0.65rem 1rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.78rem;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .status-tag {
+      padding: 0.2rem 0.5rem;
+      border-radius: 6px;
+      font-weight: 600;
+    }
+    .status-200 { background: rgba(16, 185, 129, 0.2); color: #34d399; }
+    .status-201 { background: rgba(16, 185, 129, 0.2); color: #34d399; }
+
+    .json-output {
+      padding: 1rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.82rem;
+      color: #e2e8f0;
+      white-space: pre-wrap;
+      max-height: 280px;
+      overflow-y: auto;
+    }
+
+    /* Database Inspector Tables */
+    .db-tabs {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .db-tab-btn {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      padding: 0.45rem 1rem;
+      border-radius: 8px;
+      font-size: 0.82rem;
+      cursor: pointer;
+      font-family: 'JetBrains Mono', monospace;
+      transition: all 0.2s ease;
+    }
+
+    .db-tab-btn.active {
+      background: rgba(16, 185, 129, 0.15);
+      border-color: var(--emerald);
+      color: #34d399;
+    }
+
+    .data-table-wrapper {
+      width: 100%;
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: rgba(0, 0, 0, 0.2);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.84rem;
+      text-align: left;
+    }
+
+    th {
+      background: rgba(255, 255, 255, 0.03);
+      padding: 0.85rem 1rem;
+      font-family: 'Outfit', sans-serif;
+      font-weight: 600;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border);
+      text-transform: uppercase;
+      font-size: 0.72rem;
+      letter-spacing: 0.05em;
+    }
+
+    td {
+      padding: 0.85rem 1rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+    }
+
+    tr:hover td {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .badge-status {
+      display: inline-block;
+      padding: 0.2rem 0.65rem;
+      border-radius: 12px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .badge-pending {
+      background: rgba(245, 158, 11, 0.15);
+      color: #fbbf24;
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+
+    .badge-confirmed {
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .badge-cancelled {
+      background: rgba(244, 63, 94, 0.15);
+      color: #fb7185;
+      border: 1px solid rgba(244, 63, 94, 0.3);
+    }
+
+    /* Event Bus Log Stream */
+    .event-stream {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      max-height: 380px;
+      overflow-y: auto;
+      padding-right: 0.5rem;
+    }
+
+    .event-card {
+      background: rgba(255, 255, 255, 0.02);
+      border-left: 3px solid var(--primary);
+      border-radius: 0 8px 8px 0;
+      padding: 0.75rem 1rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.78rem;
+      transition: all 0.2s ease;
+    }
+
+    .event-card.event-created { border-left-color: #38bdf8; }
+    .event-card.event-success { border-left-color: #34d399; }
+    .event-card.event-failed { border-left-color: #fb7185; }
+
+    /* Footer */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 1.25rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: var(--text-dim);
+      font-size: 0.8rem;
+      background: rgba(11, 15, 25, 0.5);
+    }
+
+    /* Toast Notification */
+    .toast {
+      position: fixed;
+      bottom: 2rem;
+      right: 2rem;
+      background: var(--bg-card);
+      border: 1px solid var(--primary);
+      box-shadow: 0 10px 30px var(--primary-glow);
+      padding: 0.85rem 1.4rem;
+      border-radius: 12px;
+      font-size: 0.85rem;
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      transform: translateY(100px);
+      opacity: 0;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      z-index: 100;
+    }
+
+    .toast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Header Navigation -->
+  <header>
+    <div class="brand">
+      <div class="logo-badge">
+        <svg viewBox="0 0 24 24">
+          <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
+        </svg>
+      </div>
+      <div>
+        <div class="brand-title">E-Commerce Microservices Engine</div>
+        <div class="brand-subtitle">Distributed Saga Orchestration & Live Output Visualizer</div>
+      </div>
+    </div>
+
+    <!-- Live System Status Indicators -->
+    <div class="services-status-bar">
+      <div class="status-pill active" title="API Gateway Reverse Proxy">
+        <span class="dot"></span> Gateway :4000
+      </div>
+      <div class="status-pill active" title="User Auth & JWT Service">
+        <span class="dot"></span> User :4001
+      </div>
+      <div class="status-pill active" title="Order Creation & Saga Coordinator">
+        <span class="dot"></span> Order :4002
+      </div>
+      <div class="status-pill active" title="Payment Event Consumer">
+        <span class="dot"></span> Payment :4003
+      </div>
+      <div class="status-pill active" style="color: #fb923c; border-color: rgba(251, 146, 60, 0.3); background: rgba(251, 146, 60, 0.08);" title="RabbitMQ Message Broker">
+        <span class="dot" style="background: #fb923c; box-shadow: 0 0 8px #fb923c;"></span> RabbitMQ :5672
+      </div>
+      <div class="status-pill active" style="color: #4ade80; border-color: rgba(74, 222, 128, 0.3); background: rgba(74, 222, 128, 0.08);" title="MongoDB Multi-Tenant DB">
+        <span class="dot" style="background: #4ade80; box-shadow: 0 0 8px #4ade80;"></span> Mongo :27017
+      </div>
+    </div>
+  </header>
+
+  <!-- Main View Area -->
+  <main>
+
+    <!-- Navigation Tabs -->
+    <div class="nav-tabs">
+      <button class="tab-btn active" onclick="switchTab('saga')">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+        Saga Workflow & Architecture
+      </button>
+      <button class="tab-btn" onclick="switchTab('api')">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+        Postman & API Gateway Runner
+      </button>
+      <button class="tab-btn" onclick="switchTab('databases')">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path></svg>
+        MongoDB Collections Inspector
+      </button>
+      <button class="tab-btn" onclick="switchTab('events')">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"></path></svg>
+        RabbitMQ Live Event Stream
+      </button>
+    </div>
+
+    <!-- TAB 1: SAGA PATTERN & ARCHITECTURE -->
+    <div id="tab-saga" class="tab-content active">
+
+      <!-- Interactive Microservices Topology Grid -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">
+            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+            Microservice Topology & Network Grid
+          </div>
+          <div class="card-badge">Synchronous HTTP + Asynchronous AMQP Events</div>
+        </div>
+
+        <div class="topology-grid">
+          <!-- API Gateway Node -->
+          <div class="node-box" id="node-gateway">
+            <div class="node-header">
+              <div class="node-icon icon-gw">GW</div>
+              <span class="status-pill active" style="font-size: 0.68rem; padding: 0.15rem 0.5rem;">:4000</span>
+            </div>
+            <div>
+              <div class="node-title">API Gateway</div>
+              <div class="node-meta">http-proxy-middleware</div>
+            </div>
+            <div class="node-desc">Single entry point for client requests. Routes /users to Port 4001 and /orders to Port 4002 with JWT auth verification.</div>
+            <div class="node-footer">
+              <span>Proxies: /users, /orders</span>
+              <span style="color: var(--cyan);">Online</span>
+            </div>
+          </div>
+
+          <!-- User Service Node -->
+          <div class="node-box" id="node-user">
+            <div class="node-header">
+              <div class="node-icon icon-user">US</div>
+              <span class="status-pill active" style="font-size: 0.68rem; padding: 0.15rem 0.5rem;">:4001</span>
+            </div>
+            <div>
+              <div class="node-title">User Service</div>
+              <div class="node-meta">Auth & Profiles</div>
+            </div>
+            <div class="node-desc">Manages user registration, bcrypt password hashing, login, and signs HMAC-SHA256 JWT tokens.</div>
+            <div class="node-footer">
+              <span>DB: Userdatabase</span>
+              <span style="color: var(--purple);">Online</span>
+            </div>
+          </div>
+
+          <!-- Order Service Node -->
+          <div class="node-box" id="node-order">
+            <div class="node-header">
+              <div class="node-icon icon-order">OS</div>
+              <span class="status-pill active" style="font-size: 0.68rem; padding: 0.15rem 0.5rem;">:4002</span>
+            </div>
+            <div>
+              <div class="node-title">Order Service</div>
+              <div class="node-meta">Saga Coordinator</div>
+            </div>
+            <div class="node-desc">Creates initial PENDING orders, publishes ORDER_CREATED to RabbitMQ, and listens for payment confirmations or rollbacks.</div>
+            <div class="node-footer">
+              <span>DB: ordersdb</span>
+              <span style="color: #34d399;">Online</span>
+            </div>
+          </div>
+
+          <!-- RabbitMQ Event Bus Node -->
+          <div class="node-box" id="node-rabbitmq" style="border-color: rgba(251, 146, 60, 0.4);">
+            <div class="node-header">
+              <div class="node-icon icon-rabbit">MQ</div>
+              <span class="status-pill active" style="font-size: 0.68rem; padding: 0.15rem 0.5rem; color: #fb923c; border-color: rgba(251,146,60,0.3); background: rgba(251,146,60,0.08);">:5672</span>
+            </div>
+            <div>
+              <div class="node-title">RabbitMQ Event Bus</div>
+              <div class="node-meta">amqplib Channel</div>
+            </div>
+            <div class="node-desc">Decoupled pub/sub event pipeline routing ORDER_CREATED, PAYMENT_SUCCESS, and PAYMENT_FAILED messages.</div>
+            <div class="node-footer">
+              <span>Dashboard: :15672</span>
+              <span style="color: #fb923c;">Active</span>
+            </div>
+          </div>
+
+          <!-- Payment Service Node -->
+          <div class="node-box" id="node-payment">
+            <div class="node-header">
+              <div class="node-icon icon-payment">PS</div>
+              <span class="status-pill active" style="font-size: 0.68rem; padding: 0.15rem 0.5rem;">:4003</span>
+            </div>
+            <div>
+              <div class="node-title">Payment Service</div>
+              <div class="node-meta">Worker & Transactor</div>
+            </div>
+            <div class="node-desc">Subscribes to ORDER_CREATED. Simulates distributed payment processing and emits success or failure events.</div>
+            <div class="node-footer">
+              <span>DB: paymentsdb</span>
+              <span style="color: #fbbf24;">Online</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Live Saga Pattern Execution Simulator -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Distributed Saga Pattern Execution Engine</div>
+            <p style="font-size: 0.82rem; color: var(--text-muted); margin-top: 0.25rem;">
+              Simulate an end-to-end distributed transaction and watch the compensating actions execute in real-time.
+            </p>
+          </div>
+          <div class="card-badge" id="saga-status-badge">READY TO TRIGGER</div>
+        </div>
+
+        <div class="saga-control-bar">
+          <div>
+            <span style="font-size: 0.8rem; color: var(--text-muted); margin-right: 0.5rem;">Payment Simulation Outcome:</span>
+            <div class="radio-group" style="display: inline-flex;">
+              <label id="opt-random" class="active" onclick="setOutcome('random')">
+                <input type="radio" name="outcome" value="random" checked> Random (50/50)
+              </label>
+              <label id="opt-success" onclick="setOutcome('success')">
+                <input type="radio" name="outcome" value="success"> Force Success
+              </label>
+              <label id="opt-fail" onclick="setOutcome('fail')">
+                <input type="radio" name="outcome" value="fail"> Force Failure (Compensate)
+              </label>
+            </div>
+          </div>
+
+          <div style="margin-left: auto; display: flex; gap: 0.75rem;">
+            <button class="btn btn-secondary" onclick="resetStepper()">Reset</button>
+            <button class="btn" id="btn-run-saga" onclick="executeSagaWorkflow()">
+              <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+              Run Saga Workflow
+            </button>
+          </div>
+        </div>
+
+        <!-- 5-Step Stepper -->
+        <div class="stepper-container">
+          <!-- Step 1 -->
+          <div class="step-item" id="step-1">
+            <div class="step-badge">1</div>
+            <div class="step-body">
+              <div class="step-header-row">
+                <div class="step-title">Client calls POST /orders via API Gateway (:4000)</div>
+                <div class="step-tag">HTTP PROXY</div>
+              </div>
+              <div class="step-desc">API Gateway validates Bearer JWT token in headers, then proxies the request to Order Service (:4002).</div>
+              <div class="code-preview" id="code-step-1">{ "userId": "68c118f0342f150f4835bdbe", "items": [{ "product": "Laptop", "quantity": 1, "price": 1000 }] }</div>
+            </div>
+          </div>
+
+          <!-- Step 2 -->
+          <div class="step-item" id="step-2">
+            <div class="step-badge">2</div>
+            <div class="step-body">
+              <div class="step-header-row">
+                <div class="step-title">Order Service writes record in ordersdb with status: PENDING</div>
+                <div class="step-tag">MONGO SAVE</div>
+              </div>
+              <div class="step-desc">Order is created in MongoDB. Total amount calculated: 1000 INR. Initial status set to "PENDING".</div>
+              <div class="code-preview" id="code-step-2">Status: PENDING | Order ID: 68c11fe8e6629d7dbed3021a | Total: ₹1000</div>
+            </div>
+          </div>
+
+          <!-- Step 3 -->
+          <div class="step-item" id="step-3">
+            <div class="step-badge">3</div>
+            <div class="step-body">
+              <div class="step-header-row">
+                <div class="step-title">Order Service publishes ORDER_CREATED event to RabbitMQ (:5672)</div>
+                <div class="step-tag">AMQP PUBLISH</div>
+              </div>
+              <div class="step-desc">Async event dispatched to RabbitMQ exchange. Order Service does NOT block waiting for payment.</div>
+              <div class="code-preview" id="code-step-3">Event: ORDER_CREATED -> Exchange: e-commerce.events | RoutingKey: order.created</div>
+            </div>
+          </div>
+
+          <!-- Step 4 -->
+          <div class="step-item" id="step-4">
+            <div class="step-badge">4</div>
+            <div class="step-body">
+              <div class="step-header-row">
+                <div class="step-title">Payment Service (:4003) consumes event & processes payment</div>
+                <div class="step-tag">AMQP SUBSCRIBE & SAGA LOGIC</div>
+              </div>
+              <div class="step-desc">Payment service calculates transaction. If successful, publishes PAYMENT_SUCCESS; otherwise publishes PAYMENT_FAILED.</div>
+              <div class="code-preview" id="code-step-4">Awaiting execution...</div>
+            </div>
+          </div>
+
+          <!-- Step 5 -->
+          <div class="step-item" id="step-5">
+            <div class="step-badge">5</div>
+            <div class="step-body">
+              <div class="step-header-row">
+                <div class="step-title" id="step-5-title">Order Service updates final order status (CONFIRMED or CANCELLED)</div>
+                <div class="step-tag" id="step-5-tag">SAGA FINALIZATION</div>
+              </div>
+              <div class="step-desc" id="step-5-desc">The Saga transaction completes distributed consistency without 2-phase commit locking.</div>
+              <div class="code-preview" id="code-step-5">Awaiting execution...</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- TAB 2: POSTMAN & API GATEWAY RUNNER -->
+    <div id="tab-api" class="tab-content">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">
+            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path></svg>
+            Interactive Postman Collection Runner
+          </div>
+          <div class="card-badge">E-commerce.postman_collection.json Executable</div>
+        </div>
+
+        <div class="api-explorer-grid">
+          <!-- Endpoints Sidebar -->
+          <div class="endpoint-list">
+            <div class="endpoint-card active" onclick="selectEndpoint('register')">
+              <span class="http-method method-post">POST</span>
+              <div>
+                <div class="endpoint-path">/users/register</div>
+                <div style="font-size: 0.72rem; color: var(--text-dim);">Register new customer</div>
+              </div>
+            </div>
+
+            <div class="endpoint-card" onclick="selectEndpoint('login')">
+              <span class="http-method method-post">POST</span>
+              <div>
+                <div class="endpoint-path">/users/login</div>
+                <div style="font-size: 0.72rem; color: var(--text-dim);">Authenticate & get JWT</div>
+              </div>
+            </div>
+
+            <div class="endpoint-card" onclick="selectEndpoint('create_order')">
+              <span class="http-method method-post">POST</span>
+              <div>
+                <div class="endpoint-path">/orders</div>
+                <div style="font-size: 0.72rem; color: var(--text-dim);">Place order (Bearer token)</div>
+              </div>
+            </div>
+
+            <div class="endpoint-card" onclick="selectEndpoint('get_order')">
+              <span class="http-method method-get">GET</span>
+              <div>
+                <div class="endpoint-path">/orders/:id</div>
+                <div style="font-size: 0.72rem; color: var(--text-dim);">Check Saga status</div>
+              </div>
+            </div>
+
+            <div class="endpoint-card" onclick="selectEndpoint('update_order')">
+              <span class="http-method method-put">PUT</span>
+              <div>
+                <div class="endpoint-path">/orders/:id</div>
+                <div style="font-size: 0.72rem; color: var(--text-dim);">Update order items</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Request & Response Panel -->
+          <div class="req-res-panel">
+            <div class="url-bar">
+              <span class="url-method-select" id="req-method-badge">POST</span>
+              <input type="text" class="url-input" id="req-url" value="http://localhost:4000/users/register" readonly>
+              <button class="btn" style="padding: 0.5rem 1.25rem;" onclick="sendApiRequest()">
+                Send
+              </button>
+            </div>
+
+            <div>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
+                <span style="font-size: 0.78rem; font-family: 'JetBrains Mono', monospace; color: var(--text-muted);">Request Payload (JSON):</span>
+                <span style="font-size: 0.72rem; color: var(--cyan);" id="token-indicator">No Auth Required</span>
+              </div>
+              <textarea class="editor-box" id="req-body"></textarea>
+            </div>
+
+            <div class="response-container">
+              <div class="response-header">
+                <div>
+                  Status: <span class="status-tag status-200" id="res-status">200 OK</span>
+                </div>
+                <div style="display: flex; gap: 1rem;">
+                  <span>Time: <strong id="res-time">14 ms</strong></span>
+                  <span>Size: <strong id="res-size">412 B</strong></span>
+                </div>
+              </div>
+              <div class="json-output" id="res-body">{
+  "message": "Click 'Send' above to trigger this endpoint"
+}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 3: MONGODB COLLECTIONS INSPECTOR -->
+    <div id="tab-databases" class="tab-content">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">
+            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path></svg>
+            Live Multi-Database MongoDB Inspector
+          </div>
+          <div class="card-badge">Separate Microservice DBs</div>
+        </div>
+
+        <div class="db-tabs">
+          <button class="db-tab-btn active" onclick="switchDb('orders')">📦 ordersdb.orders (3)</button>
+          <button class="db-tab-btn" onclick="switchDb('users')">👤 Userdatabase.users (2)</button>
+          <button class="db-tab-btn" onclick="switchDb('payments')">💳 paymentsdb.transactions (3)</button>
+        </div>
+
+        <!-- Orders Table -->
+        <div id="db-orders" class="data-table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Order _id</th>
+                <th>User ID</th>
+                <th>Items (Quantity × Price)</th>
+                <th>Total</th>
+                <th>Saga Status</th>
+                <th>Created At</th>
+              </tr>
+            </thead>
+            <tbody id="orders-table-body">
+              <tr>
+                <td style="font-family: 'JetBrains Mono'; color: var(--cyan);">68c11fe8e6629d7dbed3021a</td>
+                <td style="font-family: 'JetBrains Mono';">68c118f0342f150f4835bdbe</td>
+                <td>Laptop (1 × ₹1000)</td>
+                <td style="font-weight: 600;">₹1000</td>
+                <td><span class="badge-status badge-confirmed">CONFIRMED</span></td>
+                <td style="font-size: 0.75rem; color: var(--text-dim);">Today, 13:20:45</td>
+              </tr>
+              <tr>
+                <td style="font-family: 'JetBrains Mono'; color: var(--cyan);">68c11fe8e6629d7dbed3021b</td>
+                <td style="font-family: 'JetBrains Mono';">68c118f0342f150f4835bdbe</td>
+                <td>Leather Bag (2 × ₹500)</td>
+                <td style="font-weight: 600;">₹1000</td>
+                <td><span class="badge-status badge-cancelled">CANCELLED</span></td>
+                <td style="font-size: 0.75rem; color: var(--text-dim);">Today, 13:14:12</td>
+              </tr>
+              <tr>
+                <td style="font-family: 'JetBrains Mono'; color: var(--cyan);">68c11fe8e6629d7dbed3021c</td>
+                <td style="font-family: 'JetBrains Mono';">68c118f0342f150f4835bdbe</td>
+                <td>Wireless Mouse (2 × ₹450)</td>
+                <td style="font-weight: 600;">₹900</td>
+                <td><span class="badge-status badge-pending">PENDING</span></td>
+                <td style="font-size: 0.75rem; color: var(--text-dim);">Today, 13:10:02</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Users Table -->
+        <div id="db-users" class="data-table-wrapper" style="display: none;">
+          <table>
+            <thead>
+              <tr>
+                <th>User _id</th>
+                <th>User Name</th>
+                <th>Email</th>
+                <th>Mobile No</th>
+                <th>Address</th>
+                <th>Role</th>
+              </tr>
+            </thead>
+            <tbody id="users-table-body">
+              <tr>
+                <td style="font-family: 'JetBrains Mono'; color: var(--purple);">68c118f0342f150f4835bdbe</td>
+                <td style="font-weight: 600;">John</td>
+                <td>John@gmail.com</td>
+                <td>9876567899</td>
+                <td>Pune, Maharashtra</td>
+                <td><span class="status-pill active" style="font-size: 0.7rem; padding: 0.1rem 0.5rem;">Customer</span></td>
+              </tr>
+              <tr>
+                <td style="font-family: 'JetBrains Mono'; color: var(--purple);">68c029ed4a8505819800152d</td>
+                <td style="font-weight: 600;">Bob</td>
+                <td>Bob@gmail.com</td>
+                <td>9876567896</td>
+                <td>Nagpur, Maharashtra</td>
+                <td><span class="status-pill active" style="font-size: 0.7rem; padding: 0.1rem 0.5rem;">Customer</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Payments Table -->
+        <div id="db-payments" class="data-table-wrapper" style="display: none;">
+          <table>
+            <thead>
+              <tr>
+                <th>Payment TxID</th>
+                <th>Related Order ID</th>
+                <th>Amount</th>
+                <th>Payment Status</th>
+                <th>Processor</th>
+                <th>Timestamp</th>
+              </tr>
+            </thead>
+            <tbody id="payments-table-body">
+              <tr>
+                <td style="font-family: 'JetBrains Mono'; color: #fbbf24;">tx_84f910a2e</td>
+                <td style="font-family: 'JetBrains Mono';">68c11fe8e6629d7dbed3021a</td>
+                <td style="font-weight: 600;">₹1000</td>
+                <td><span class="badge-status badge-confirmed">SUCCESS</span></td>
+                <td>Mock Payment Gateway</td>
+                <td style="font-size: 0.75rem; color: var(--text-dim);">13:20:46</td>
+              </tr>
+              <tr>
+                <td style="font-family: 'JetBrains Mono'; color: #fbbf24;">tx_72c019d1b</td>
+                <td style="font-family: 'JetBrains Mono';">68c11fe8e6629d7dbed3021b</td>
+                <td style="font-weight: 600;">₹1000</td>
+                <td><span class="badge-status badge-cancelled">FAILED (DECLINED)</span></td>
+                <td>Mock Payment Gateway</td>
+                <td style="font-size: 0.75rem; color: var(--text-dim);">13:14:13</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- TAB 4: RABBITMQ LIVE EVENT STREAM -->
+    <div id="tab-events" class="tab-content">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">
+            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+            RabbitMQ Event Bus Channel & Queue Messages
+          </div>
+          <button class="btn btn-secondary" style="padding: 0.35rem 0.75rem; font-size: 0.75rem;" onclick="clearEvents()">
+            Clear Log
+          </button>
+        </div>
+
+        <div class="event-stream" id="event-stream-container">
+          <div class="event-card event-created">
+            <div>
+              <div style="font-weight: 600; color: #38bdf8;">[AMQP] Event Published: ORDER_CREATED</div>
+              <div style="font-size: 0.72rem; color: var(--text-dim); margin-top: 0.2rem;">Payload: { orderId: "68c11fe8e6629d7dbed3021a", totalAmount: 1000 }</div>
+            </div>
+            <div style="font-size: 0.7rem; color: var(--text-dim);">Exchange: direct | 13:20:45</div>
+          </div>
+
+          <div class="event-card event-success">
+            <div>
+              <div style="font-weight: 600; color: #34d399;">[AMQP] Event Published: PAYMENT_SUCCESS</div>
+              <div style="font-size: 0.72rem; color: var(--text-dim); margin-top: 0.2rem;">Payload: { orderId: "68c11fe8e6629d7dbed3021a", status: "SUCCESS" }</div>
+            </div>
+            <div style="font-size: 0.7rem; color: var(--text-dim);">RoutingKey: payment.success | 13:20:46</div>
+          </div>
+
+          <div class="event-card event-created">
+            <div>
+              <div style="font-weight: 600; color: #38bdf8;">[AMQP] Event Published: ORDER_CREATED</div>
+              <div style="font-size: 0.72rem; color: var(--text-dim); margin-top: 0.2rem;">Payload: { orderId: "68c11fe8e6629d7dbed3021b", totalAmount: 1000 }</div>
+            </div>
+            <div style="font-size: 0.7rem; color: var(--text-dim);">Exchange: direct | 13:14:12</div>
+          </div>
+
+          <div class="event-card event-failed">
+            <div>
+              <div style="font-weight: 600; color: #fb7185;">[AMQP] Event Published: PAYMENT_FAILED (Triggering Compensation)</div>
+              <div style="font-size: 0.72rem; color: var(--text-dim); margin-top: 0.2rem;">Payload: { orderId: "68c11fe8e6629d7dbed3021b", error: "Card Declined" }</div>
+            </div>
+            <div style="font-size: 0.7rem; color: var(--text-dim);">RoutingKey: payment.failed | 13:14:13</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Footer -->
+  <footer>
+    <div>E-Commerce Microservices Simulation • Node.js, Express, MongoDB, RabbitMQ, Docker</div>
+    <div>All services active in in-memory simulation mode (Port 3000)</div>
+  </footer>
+
+  <!-- Toast -->
+  <div class="toast" id="toast">
+    <span id="toast-msg">Operation completed successfully</span>
+  </div>
+
+  <script>
+    // System State
+    let outcomeMode = 'random';
+    let currentEndpoint = 'register';
+    let jwtToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4YzExOGYwMzQyZjE1MGY0ODM1YmRiZSIsInVzZXJFbWFpbCI6IkpvaG5AZ21haWwuY29tIiwiaWF0IjoxNzU3NDg1NDI5LCJleHAiOjE3NTc0ODkwMjl9.zEAKBIMAZGus4Kuw_EA9JAAGIq1R69OV2a6HJhKPm3E";
+
+    // Tab Navigation
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+
+      event.currentTarget.classList.add('active');
+      document.getElementById('tab-' + tabId).classList.add('active');
+    }
+
+    // Database tab switcher
+    function switchDb(dbName) {
+      document.querySelectorAll('.db-tab-btn').forEach(b => b.classList.remove('active'));
+      event.currentTarget.classList.add('active');
+
+      document.getElementById('db-orders').style.display = dbName === 'orders' ? 'block' : 'none';
+      document.getElementById('db-users').style.display = dbName === 'users' ? 'block' : 'none';
+      document.getElementById('db-payments').style.display = dbName === 'payments' ? 'block' : 'none';
+    }
+
+    // Toast
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      document.getElementById('toast-msg').innerText = msg;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 3000);
+    }
+
+    // Outcome Setting
+    function setOutcome(val) {
+      outcomeMode = val;
+      document.querySelectorAll('.radio-group label').forEach(l => l.classList.remove('active'));
+      document.getElementById('opt-' + val).classList.add('active');
+      showToast("Payment outcome mode set to: " + val.toUpperCase());
+    }
+
+    // Reset Stepper
+    function resetStepper() {
+      for (let i = 1; i <= 5; i++) {
+        const step = document.getElementById('step-' + i);
+        step.className = 'step-item';
+      }
+      document.getElementById('saga-status-badge').innerText = 'READY TO TRIGGER';
+      document.getElementById('saga-status-badge').style.color = 'var(--text-muted)';
+      document.getElementById('code-step-4').innerText = 'Awaiting execution...';
+      document.getElementById('code-step-5').innerText = 'Awaiting execution...';
+      document.querySelectorAll('.node-box').forEach(n => {
+        n.classList.remove('highlight');
+        n.classList.remove('error-highlight');
+      });
+    }
+
+    // SAGA EXECUTION SIMULATOR
+    async function executeSagaWorkflow() {
+      const btn = document.getElementById('btn-run-saga');
+      btn.disabled = true;
+      resetStepper();
+
+      const newOrderId = '68c' + Math.random().toString(16).substring(2, 8) + 'e6629d7dbed30' + Math.floor(Math.random() * 900 + 100);
+      const randomProducts = [
+        { name: 'Mechanical Keyboard', price: 1200 },
+        { name: 'Sony Noise-Canceling Headphones', price: 2500 },
+        { name: 'Dell 27" 4K Monitor', price: 4500 },
+        { name: 'Ergonomic Office Chair', price: 3200 }
+      ];
+      const selectedProduct = randomProducts[Math.floor(Math.random() * randomProducts.length)];
+      const total = selectedProduct.price;
+
+      document.getElementById('saga-status-badge').innerText = 'SAGA IN PROGRESS...';
+      document.getElementById('saga-status-badge').style.color = 'var(--cyan)';
+
+      // Step 1: API Gateway receives request
+      const step1 = document.getElementById('step-1');
+      step1.classList.add('active');
+      document.getElementById('node-gateway').classList.add('highlight');
+      document.getElementById('code-step-1').innerText = JSON.stringify({
+        userId: "68c118f0342f150f4835bdbe",
+        items: [{ product: selectedProduct.name, quantity: 1, price: selectedProduct.price }],
+        totalAmount: total
+      }, null, 2);
+      await new Promise(r => setTimeout(r, 900));
+
+      // Step 2: Order Service creates PENDING order in MongoDB
+      step1.classList.remove('active');
+      step1.classList.add('success');
+      document.getElementById('node-gateway').classList.remove('highlight');
+
+      const step2 = document.getElementById('step-2');
+      step2.classList.add('active');
+      document.getElementById('node-order').classList.add('highlight');
+      document.getElementById('code-step-2').innerText = `Order ID: ${newOrderId}\nStatus: PENDING\nTotal: ₹${total}\nSaved to database 'ordersdb'`;
+      await new Promise(r => setTimeout(r, 1000));
+
+      // Step 3: Order Service publishes ORDER_CREATED to RabbitMQ
+      step2.classList.remove('active');
+      step2.classList.add('success');
+
+      const step3 = document.getElementById('step-3');
+      step3.classList.add('active');
+      document.getElementById('node-rabbitmq').classList.add('highlight');
+      document.getElementById('code-step-3').innerText = `[AMQP publishEvent] Exchange: default | RoutingKey: order.created\nPayload: {\n  "orderId": "${newOrderId}",\n  "totalAmount": ${total}\n}`;
+      addEventCard(`[AMQP] Event Published: ORDER_CREATED`, `Payload: { orderId: "${newOrderId}", totalAmount: ${total} }`, 'created');
+      await new Promise(r => setTimeout(r, 1000));
+
+      // Step 4: Payment Service consumes event
+      step3.classList.remove('active');
+      step3.classList.add('success');
+      document.getElementById('node-rabbitmq').classList.remove('highlight');
+      document.getElementById('node-order').classList.remove('highlight');
+
+      const step4 = document.getElementById('step-4');
+      step4.classList.add('active');
+      document.getElementById('node-payment').classList.add('highlight');
+
+      let isSuccess = false;
+      if (outcomeMode === 'success') isSuccess = true;
+      else if (outcomeMode === 'fail') isSuccess = false;
+      else isSuccess = Math.random() > 0.4;
+
+      await new Promise(r => setTimeout(r, 1200));
+
+      // Step 5: Finalization / Compensation
+      step4.classList.remove('active');
+      document.getElementById('node-payment').classList.remove('highlight');
+
+      const step5 = document.getElementById('step-5');
+      step5.classList.add('active');
+      document.getElementById('node-order').classList.add('highlight');
+
+      const tbody = document.getElementById('orders-table-body');
+      const newRow = document.createElement('tr');
+
+      if (isSuccess) {
+        step4.classList.add('success');
+        step5.classList.add('success');
+        document.getElementById('code-step-4').innerText = `Payment SUCCESS for order: ${newOrderId}\nEmitted event: PAYMENT_SUCCESS`;
+        document.getElementById('code-step-5').innerText = `Order Service updated Order [${newOrderId}] status -> "CONFIRMED"\nTransaction Completed Successfully!`;
+        document.getElementById('saga-status-badge').innerText = 'SAGA COMPLETED: CONFIRMED';
+        document.getElementById('saga-status-badge').style.color = '#34d399';
+
+        addEventCard(`[AMQP] Event Published: PAYMENT_SUCCESS`, `Payload: { orderId: "${newOrderId}", status: "SUCCESS" }`, 'success');
+
+        newRow.innerHTML = `
+          <td style="font-family: 'JetBrains Mono'; color: var(--cyan);">${newOrderId}</td>
+          <td style="font-family: 'JetBrains Mono';">68c118f0342f150f4835bdbe</td>
+          <td>${selectedProduct.name} (1 × ₹${selectedProduct.price})</td>
+          <td style="font-weight: 600;">₹${total}</td>
+          <td><span class="badge-status badge-confirmed">CONFIRMED</span></td>
+          <td style="font-size: 0.75rem; color: var(--text-dim);">Just now</td>
+        `;
+        showToast("Saga Complete: Order CONFIRMED! 🎉");
+      } else {
+        step4.classList.add('failed');
+        step5.classList.add('failed');
+        document.getElementById('node-order').classList.remove('highlight');
+        document.getElementById('node-order').classList.add('error-highlight');
+
+        document.getElementById('code-step-4').innerText = `Payment FAILED for order: ${newOrderId}\nReason: Insufficient funds or card decline\nEmitted event: PAYMENT_FAILED`;
+        document.getElementById('code-step-5').innerText = `Order Service executed Compensating Action:\nUpdated Order [${newOrderId}] status -> "CANCELLED" (Rollback)`;
+        document.getElementById('saga-status-badge').innerText = 'SAGA COMPENSATED: CANCELLED';
+        document.getElementById('saga-status-badge').style.color = '#fb7185';
+
+        addEventCard(`[AMQP] Event Published: PAYMENT_FAILED (Compensating)`, `Payload: { orderId: "${newOrderId}", error: "Payment Declined" }`, 'failed');
+
+        newRow.innerHTML = `
+          <td style="font-family: 'JetBrains Mono'; color: var(--cyan);">${newOrderId}</td>
+          <td style="font-family: 'JetBrains Mono';">68c118f0342f150f4835bdbe</td>
+          <td>${selectedProduct.name} (1 × ₹${selectedProduct.price})</td>
+          <td style="font-weight: 600;">₹${total}</td>
+          <td><span class="badge-status badge-cancelled">CANCELLED</span></td>
+          <td style="font-size: 0.75rem; color: var(--text-dim);">Just now</td>
+        `;
+        showToast("Saga Compensation: Order CANCELLED ⚠️");
+      }
+
+      tbody.insertBefore(newRow, tbody.firstChild);
+      btn.disabled = false;
+    }
+
+    function addEventCard(title, body, type) {
+      const container = document.getElementById('event-stream-container');
+      const card = document.createElement('div');
+      card.className = `event-card event-${type}`;
+      card.innerHTML = `
+        <div>
+          <div style="font-weight: 600; color: ${type === 'success' ? '#34d399' : (type === 'failed' ? '#fb7185' : '#38bdf8')};">${title}</div>
+          <div style="font-size: 0.72rem; color: var(--text-dim); margin-top: 0.2rem;">${body}</div>
+        </div>
+        <div style="font-size: 0.7rem; color: var(--text-dim);">${new Date().toLocaleTimeString()}</div>
+      `;
+      container.insertBefore(card, container.firstChild);
+    }
+
+    function clearEvents() {
+      document.getElementById('event-stream-container').innerHTML = '';
+      showToast("Event logs cleared");
+    }
+
+    // POSTMAN / API EXPLORER
+    const endpointConfigs = {
+      register: {
+        method: "POST",
+        url: "http://localhost:4000/users/register",
+        auth: "No Auth Required",
+        body: JSON.stringify({
+          userName: "Nelson",
+          userEmail: "nelson@example.com",
+          userPassword: "Password123",
+          userMobileNo: "9876543210",
+          userAddress: "Bangalore, India"
+        }, null, 2),
+        response: {
+          message: "User registered successfully",
+          user: {
+            _id: "68c1990402fc325766a9d001",
+            userName: "Nelson",
+            userEmail: "nelson@example.com",
+            userMobileNo: "9876543210",
+            userAddress: "Bangalore, India",
+            createdAt: new Date().toISOString()
+          }
+        }
+      },
+      login: {
+        method: "POST",
+        url: "http://localhost:4000/users/login",
+        auth: "No Auth Required",
+        body: JSON.stringify({
+          userEmail: "John@gmail.com",
+          userPassword: "John123"
+        }, null, 2),
+        response: {
+          message: "Login successful",
+          user: {
+            _id: "68c118f0342f150f4835bdbe",
+            userName: "John",
+            userEmail: "John@gmail.com"
+          },
+          token: jwtToken
+        }
+      },
+      create_order: {
+        method: "POST",
+        url: "http://localhost:4000/orders",
+        auth: "Bearer Token Attached",
+        body: JSON.stringify({
+          userId: "68c118f0342f150f4835bdbe",
+          items: [
+            { product: "Gaming Laptop", quantity: 1, price: 1500 },
+            { product: "Wireless Mouse", quantity: 2, price: 250 }
+          ],
+          totalAmount: 2000
+        }, null, 2),
+        response: {
+          userId: "68c118f0342f150f4835bdbe",
+          items: [
+            { product: "Gaming Laptop", quantity: 1, price: 1500, _id: "68c1990402fc325766a9d10a" },
+            { product: "Wireless Mouse", quantity: 2, price: 250, _id: "68c1990402fc325766a9d10b" }
+          ],
+          totalAmount: 2000,
+          status: "PENDING",
+          _id: "68c11fe8e6629d7dbed3099a",
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        }
+      },
+      get_order: {
+        method: "GET",
+        url: "http://localhost:4000/orders/68c11fe8e6629d7dbed3021a",
+        auth: "Bearer Token Attached",
+        body: "{}",
+        response: {
+          _id: "68c11fe8e6629d7dbed3021a",
+          userId: "68c118f0342f150f4835bdbe",
+          items: [
+            { product: "Laptop", quantity: 1, price: 1000, _id: "68c11fe8e6629d7dbed3021b" }
+          ],
+          totalAmount: 1000,
+          status: "CONFIRMED",
+          createdAt: "2026-10-15T07:50:20.463Z",
+          updatedAt: "2026-10-15T07:50:21.599Z"
+        }
+      },
+      update_order: {
+        method: "PUT",
+        url: "http://localhost:4000/orders/68c11fe8e6629d7dbed3021a",
+        auth: "Bearer Token Attached",
+        body: JSON.stringify({
+          items: [
+            { product: "Laptop", quantity: 2, price: 1000 }
+          ],
+          totalAmount: 2000
+        }, null, 2),
+        response: {
+          _id: "68c11fe8e6629d7dbed3021a",
+          userId: "68c118f0342f150f4835bdbe",
+          items: [
+            { product: "Laptop", quantity: 2, price: 1000, _id: "68c11fe8e6629d7dbed3021b" }
+          ],
+          totalAmount: 2000,
+          status: "CONFIRMED",
+          updatedAt: new Date().toISOString()
+        }
+      }
+    };
+
+    function selectEndpoint(name) {
+      currentEndpoint = name;
+      document.querySelectorAll('.endpoint-card').forEach(c => c.classList.remove('active'));
+      event.currentTarget.classList.add('active');
+
+      const config = endpointConfigs[name];
+      document.getElementById('req-method-badge').innerText = config.method;
+      document.getElementById('req-url').value = config.url;
+      document.getElementById('token-indicator').innerText = config.auth;
+      document.getElementById('req-body').value = config.body;
+      document.getElementById('res-body').innerText = JSON.stringify(config.response, null, 2);
+    }
+
+    function sendApiRequest() {
+      const config = endpointConfigs[currentEndpoint];
+      document.getElementById('res-body').innerText = "Processing request through API Gateway...";
+      
+      setTimeout(() => {
+        let resp = config.response;
+        try {
+          if (currentEndpoint === 'register') {
+            const parsed = JSON.parse(document.getElementById('req-body').value);
+            resp = {
+              message: "User registered successfully",
+              user: {
+                _id: "68c" + Math.random().toString(16).substring(2, 10),
+                userName: parsed.userName || "Nelson",
+                userEmail: parsed.userEmail || "nelson@example.com",
+                userMobileNo: parsed.userMobileNo || "9876543210",
+                userAddress: parsed.userAddress || "Bangalore",
+                createdAt: new Date().toISOString()
+              }
+            };
+          }
+        } catch(e) {}
+
+        document.getElementById('res-status').innerText = (config.method === 'POST' ? '201 Created' : '200 OK');
+        document.getElementById('res-time').innerText = Math.floor(Math.random() * 20 + 8) + ' ms';
+        document.getElementById('res-size').innerText = Math.floor(Math.random() * 200 + 350) + ' B';
+        document.getElementById('res-body').innerText = JSON.stringify(resp, null, 2);
+        showToast(`200 OK: ${config.method} ${config.url}`);
+      }, 300);
+    }
+
+    // Initialize with default endpoint
+    document.getElementById('req-body').value = endpointConfigs.register.body;
+  </script>
+</body>
+</html>
